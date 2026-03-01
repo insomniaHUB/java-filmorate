@@ -16,7 +16,8 @@ import java.util.Map;
 @RequestMapping("/users")
 @Slf4j
 public class UserController {
-    Map<Long, User> users = new HashMap<>();
+    private final Map<Long, User> users = new HashMap<>();
+    private long id = 1;
 
     @GetMapping
     public Collection<User> findAll() {
@@ -25,18 +26,15 @@ public class UserController {
 
     @PostMapping
     public User create(@RequestBody User user) {
-        if (user.getEmail() == null || !user.getEmail().contains("@") || user.getEmail().isBlank()
-                || user.getEmail().contains(" ") || user.getBirthday().isAfter(LocalDate.now())) {
-            log.info("Произошла ошибка валидации при попытке создания нового пользователя.");
-            throw new ValidationException("Ошибка валидации!");
-        }
+        validate(user);
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
             log.info("Имя пользователя взято из логина.");
         }
-        user.setId(getNextId());
+        user.setId(id);
         users.put(user.getId(), user);
         log.info("Создан новый пользователь.");
+        id++;
         return user;
     }
 
@@ -51,11 +49,8 @@ public class UserController {
                 log.info("Не получилось изменить данные пользователя из-за нехватки данных.");
                 return users.get(newUser.getId());
             }
-            if (!newUser.getEmail().contains("@") || newUser.getEmail().isBlank()
-                    || newUser.getEmail().contains(" ") || newUser.getBirthday().isAfter(LocalDate.now())) {
-                log.info("Произошла ошибка валидации при попытке обновления данных пользователя.");
-                throw new ValidationException("Ошибка валидации!");
-            }
+            validate(newUser);
+
             User oldUser = users.get(newUser.getId());
             oldUser.setName(newUser.getName());
             oldUser.setLogin(newUser.getLogin());
@@ -68,12 +63,11 @@ public class UserController {
         throw new NotFoundException("Пользователь с Id = " + newUser.getId() + " не был найден!");
     }
 
-    private long getNextId() {
-        long currentMax = users.keySet()
-                .stream()
-                .mapToLong(id -> id)
-                .max()
-                .orElse(0);
-        return ++currentMax;
+    private void validate(User user) {
+        if (user.getEmail() == null || !user.getEmail().contains("@") || user.getEmail().isBlank()
+                || user.getEmail().contains(" ") || user.getBirthday().isAfter(LocalDate.now())) {
+            log.info("Произошла ошибка валидации при попытке создания нового пользователя.");
+            throw new ValidationException("Ошибка валидации!");
+        }
     }
 }
