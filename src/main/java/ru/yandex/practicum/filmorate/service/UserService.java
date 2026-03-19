@@ -7,7 +7,7 @@ import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -17,11 +17,11 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class UserService {
-    private final InMemoryUserStorage userStorage;
+    private final UserStorage userStorage;
     private long id = 1;
 
     @Autowired
-    public UserService(InMemoryUserStorage userStorage) {
+    public UserService(UserStorage userStorage) {
         this.userStorage = userStorage;
     }
 
@@ -30,10 +30,8 @@ public class UserService {
     }
 
     public User findUser(Long id) {
-        if (!userStorage.getUsersMap().containsKey(id)) {
-            throw new NotFoundException("Пользователь не был найден");
-        }
-        return userStorage.getUsersMap().get(id);
+        validateUser(id);
+        return userStorage.getUser(id);
     }
 
     public User create(User user) {
@@ -53,10 +51,10 @@ public class UserService {
             log.info("Не указан Id при обновлении данных пользователя.");
             throw new ConditionsNotMetException("Должен быть указан Id.");
         }
-        if (userStorage.getUsersMap().containsKey(newUser.getId())) {
+        if (userStorage.getUser(newUser.getId()) != null) {
             if (newUser.getEmail() == null || newUser.getName() == null || newUser.getLogin() == null || newUser.getBirthday() == null) {
                 log.info("Не получилось изменить данные пользователя из-за нехватки данных.");
-                return userStorage.getUsersMap().get(newUser.getId());
+                return userStorage.getUser(newUser.getId());
             }
             validate(newUser);
 
@@ -68,25 +66,19 @@ public class UserService {
     }
 
     public void addFriend(Long id, Long friendId) {
-        if (!userStorage.getUsersMap().containsKey(id)) {
-            throw new NotFoundException("Пользователь не был найден");
-        }
-        if (!userStorage.getUsersMap().containsKey(friendId)) {
-            throw new NotFoundException("Пользователь с таким ID не существует");
-        }
-        userStorage.getUsersMap().get(id).getFriends().add(friendId);
-        userStorage.getUsersMap().get(friendId).getFriends().add(id);
+        validateUser(id);
+        validateUser(friendId);
+
+        userStorage.getUser(id).getFriends().add(friendId);
+        userStorage.getUser(friendId).getFriends().add(id);
     }
 
     public Collection<User> getMutualFriends(Long id, Long friendId) {
-        if (!userStorage.getUsersMap().containsKey(id)) {
-            throw new NotFoundException("Пользователь не был найден");
-        }
-        if (!userStorage.getUsersMap().containsKey(friendId)) {
-            throw new NotFoundException("Пользователь с таким ID не существует");
-        }
-        Set<Long> userFriends = userStorage.getUsersMap().get(id).getFriends();
-        Set<Long> otherUserFriends = userStorage.getUsersMap().get(friendId).getFriends();
+        validateUser(id);
+        validateUser(friendId);
+
+        Set<Long> userFriends = userStorage.getUser(id).getFriends();
+        Set<Long> otherUserFriends = userStorage.getUser(friendId).getFriends();
 
         return userFriends.stream()
                 .filter(otherUserFriends::contains)
@@ -95,23 +87,17 @@ public class UserService {
     }
 
     public Collection<User> getAllFriends(Long id) {
-        if (!userStorage.getUsersMap().containsKey(id)) {
-            throw new NotFoundException("Пользователь не был найден");
-        }
-        return userStorage.getUsersMap().get(id).getFriends().stream()
+        validateUser(id);
+        return userStorage.getUser(id).getFriends().stream()
                 .map(this::findUser)
                 .collect(Collectors.toList());
     }
 
     public void deleteFriend(Long id, Long friendId) {
-        if (!userStorage.getUsersMap().containsKey(id)) {
-            throw new NotFoundException("Пользователь не был найден");
-        }
-        if (!userStorage.getUsersMap().containsKey(friendId)) {
-            throw new NotFoundException("Пользователь с таким ID не существует");
-        }
-        userStorage.getUsersMap().get(id).getFriends().remove(friendId);
-        userStorage.getUsersMap().get(friendId).getFriends().remove(id);
+        validateUser(id);
+        validateUser(friendId);
+        userStorage.getUser(id).getFriends().remove(friendId);
+        userStorage.getUser(friendId).getFriends().remove(id);
     }
 
     private void validate(User user) {
@@ -119,6 +105,12 @@ public class UserService {
                 || user.getEmail().contains(" ") || user.getBirthday().isAfter(LocalDate.now())) {
             log.info("Произошла ошибка валидации при попытке создания нового пользователя.");
             throw new ValidationException("Ошибка валидации!");
+        }
+    }
+
+    private void validateUser(Long id) {
+        if (userStorage.getUser(id) == null) {
+            throw new NotFoundException("Пользователь не был найден");
         }
     }
 }

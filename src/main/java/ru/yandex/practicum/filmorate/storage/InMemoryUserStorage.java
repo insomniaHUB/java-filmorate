@@ -32,11 +32,13 @@ public class InMemoryUserStorage implements UserStorage {
         return user;
     }
 
+    @Override
     public Collection<User> getAllUsers() {
         return users.values();
     }
 
-    public Map<Long, User> getUsersMap() {
-        return users;
+    @Override
+    public User getUser(Long id) {
+        return users.get(id);
     }
 }
