@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -18,10 +19,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class UserService {
     private final UserStorage userStorage;
-    private long id = 1;
 
     @Autowired
-    public UserService(UserStorage userStorage) {
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
         this.userStorage = userStorage;
     }
 
@@ -31,7 +31,7 @@ public class UserService {
 
     public User findUser(Long id) {
         validateUser(id);
-        return userStorage.getUser(id);
+        return userStorage.getUserById(id);
     }
 
     public User create(User user) {
@@ -41,8 +41,6 @@ public class UserService {
             log.info("Имя пользователя взято из логина.");
         }
         log.info("Создан новый пользователь.");
-        user.setId(id);
-        id++;
         return userStorage.createUser(user);
     }
 
@@ -51,10 +49,14 @@ public class UserService {
             log.info("Не указан Id при обновлении данных пользователя.");
             throw new ConditionsNotMetException("Должен быть указан Id.");
         }
-        if (userStorage.getUser(newUser.getId()) != null) {
+        if (userStorage.getUserById(newUser.getId()) == null) {
+            log.info("Пользователь с Id = " + newUser.getId() + " не был найден!");
+            throw new NotFoundException("Пользователь с Id = " + newUser.getId() + " не был найден!");
+        }
+        if (userStorage.getUserById(newUser.getId()) != null) {
             if (newUser.getEmail() == null || newUser.getName() == null || newUser.getLogin() == null || newUser.getBirthday() == null) {
                 log.info("Не получилось изменить данные пользователя из-за нехватки данных.");
-                return userStorage.getUser(newUser.getId());
+                return userStorage.getUserById(newUser.getId());
             }
             validate(newUser);
 
@@ -69,16 +71,19 @@ public class UserService {
         validateUser(id);
         validateUser(friendId);
 
-        userStorage.getUser(id).getFriends().add(friendId);
-        userStorage.getUser(friendId).getFriends().add(id);
+        if (userStorage.getUserById(friendId).getFriends().contains(id)) {
+            userStorage.updateFriend(id, friendId);
+        } else {
+            userStorage.addFriend(id, friendId);
+        }
     }
 
     public Collection<User> getMutualFriends(Long id, Long friendId) {
         validateUser(id);
         validateUser(friendId);
 
-        Set<Long> userFriends = userStorage.getUser(id).getFriends();
-        Set<Long> otherUserFriends = userStorage.getUser(friendId).getFriends();
+        Set<Long> userFriends = userStorage.getUserById(id).getFriends();
+        Set<Long> otherUserFriends = userStorage.getUserById(friendId).getFriends();
 
         return userFriends.stream()
                 .filter(otherUserFriends::contains)
@@ -88,7 +93,7 @@ public class UserService {
 
     public Collection<User> getAllFriends(Long id) {
         validateUser(id);
-        return userStorage.getUser(id).getFriends().stream()
+        return userStorage.getUserById(id).getFriends().stream()
                 .map(this::findUser)
                 .collect(Collectors.toList());
     }
@@ -96,8 +101,9 @@ public class UserService {
     public void deleteFriend(Long id, Long friendId) {
         validateUser(id);
         validateUser(friendId);
-        userStorage.getUser(id).getFriends().remove(friendId);
-        userStorage.getUser(friendId).getFriends().remove(id);
+        userStorage.deleteFriend(id, friendId);
+        userStorage.getUserById(id).getFriends().remove(friendId);
+        userStorage.getUserById(friendId).getFriends().remove(id);
     }
 
     private void validate(User user) {
@@ -109,7 +115,7 @@ public class UserService {
     }
 
     private void validateUser(Long id) {
-        if (userStorage.getUser(id) == null) {
+        if (userStorage.getUserById(id) == null) {
             throw new NotFoundException("Пользователь не был найден");
         }
     }

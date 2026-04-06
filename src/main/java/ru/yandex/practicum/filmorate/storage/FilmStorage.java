@@ -8,11 +8,15 @@ public interface FilmStorage {
 
     void deleteFilm(Long id);
 
-    Film createFilm(Film user);
+    Film createFilm(Film film);
 
-    Film updateFilm(Film newUser);
+    Film updateFilm(Film newFilm);
 
     Collection<Film> getAllFilms();
 
-    Film getFilm(Long id);
+    Film getFilmById(Long id);
+
+    void addLike(Long id, Long idUser);
+
+    void deleteLike(Long id, Long idUser);
 }

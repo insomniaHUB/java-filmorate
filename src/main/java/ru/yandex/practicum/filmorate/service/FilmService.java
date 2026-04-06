@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -21,12 +22,12 @@ import java.util.stream.Collectors;
 public class FilmService {
     private static final LocalDate THE_EARLIEST_DATA_RELEASE = LocalDate.of(1895, 12, 28);
     private static final int MAX_DESCRIPTION_LENGTH = 200;
-    private long id = 1;
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
 
     @Autowired
-    public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
+    public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
+                       @Qualifier("userDbStorage") UserStorage userStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
     }
@@ -38,34 +39,36 @@ public class FilmService {
     public Film findFilm(Long id) {
         validateFilm(id);
 
-        return filmStorage.getFilm(id);
+        return filmStorage.getFilmById(id);
     }
 
     public Film create(Film film) {
         validate(film);
 
-        film.setId(id);
         log.info("Создан новый фильм.");
-        id++;
         return filmStorage.createFilm(film);
     }
 
     public Film update(Film newFilm) {
         if (newFilm.getId() == null) {
-            log.info("Не указан Id при обновлении данных фильма.");
+            log.warn("Не указан Id при обновлении данных фильма.");
             throw new ConditionsNotMetException("Должен быть указан Id");
         }
-        if (filmStorage.getFilm(newFilm.getId()) != null) {
+        if (filmStorage.getFilmById(newFilm.getId()) == null) {
+            log.warn("Фильм с Id = " + newFilm.getId() + " не был найден!");
+            throw new NotFoundException("Фильм с Id = " + newFilm.getId() + " не был найден!");
+        }
+        if (filmStorage.getFilmById(newFilm.getId()) != null) {
             if (newFilm.getDescription() == null || newFilm.getReleaseDate() == null || newFilm.getDuration() == null) {
-                log.info("Не получилось изменить данные фильма из-за нехватки данных.");
-                return filmStorage.getFilm(newFilm.getId());
+                log.warn("Не получилось изменить данные фильма из-за нехватки данных.");
+                return filmStorage.getFilmById(newFilm.getId());
             }
             validate(newFilm);
 
             log.info("Данные фильма успешно обновлены.");
             return filmStorage.updateFilm(newFilm);
         }
-        log.info("Пользователь с Id = " + newFilm.getId() + " не был найден!");
+        log.warn("Фильм с Id = " + newFilm.getId() + " не был найден!");
         throw new NotFoundException("Фильм с Id = " + newFilm.getId() + " не был найден!");
     }
 
@@ -73,14 +76,16 @@ public class FilmService {
         validateFilm(id);
         validateUser(idUser);
 
-        filmStorage.getFilm(id).getLiked().add(idUser);
+        filmStorage.addLike(id, idUser);
+        filmStorage.getFilmById(id).getLiked().add(idUser);
     }
 
     public void deleteLike(Long id, Long idUser) {
         validateFilm(id);
         validateUser(idUser);
 
-        filmStorage.getFilm(id).getLiked().remove(idUser);
+        filmStorage.deleteLike(id, idUser);
+        filmStorage.getFilmById(id).getLiked().remove(idUser);
     }
 
     public List<Film> getMostPopularFilms(int count) {
@@ -94,20 +99,20 @@ public class FilmService {
         if (film.getName() == null || film.getName().isBlank() || film.getDescription().length() > MAX_DESCRIPTION_LENGTH
                 || film.getReleaseDate().isBefore(THE_EARLIEST_DATA_RELEASE)
                 || film.getDuration() < 0) {
-            log.info("Произошла ошибка валидации при попытке создания нового фильма.");
+            log.warn("Произошла ошибка валидации при попытке создания нового фильма.");
             throw new ValidationException("Ошибка валидации!");
         }
     }
 
     private void validateFilm(Long id) {
-        if (filmStorage.getFilm(id) == null) {
+        if (filmStorage.getFilmById(id) == null) {
             throw new NotFoundException("Фильм не найден");
         }
     }
 
     private void validateUser(Long id) {
-        if (userStorage.getUser(id) == null) {
-            throw new NotFoundException("Пользователь не был найден");
+        if (userStorage.getUserById(id) == null) {
+            throw new NotFoundException("Пользователь не найден");
         }
     }
 }
