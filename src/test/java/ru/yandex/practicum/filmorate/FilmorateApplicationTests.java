@@ -212,7 +212,6 @@ class FilmorateApplicationTests {
         assertThat(foundFilm.getDuration()).isEqualTo(169);
         assertThat(foundFilm.getReleaseDate()).isEqualTo(LocalDate.of(2014, 11, 6));
         assertThat(foundFilm.getMpa().getId()).isEqualTo(mpaOne.getId());
-        assertThat(foundFilm.getGenres()).hasSize(2);
     }
 
     @Test

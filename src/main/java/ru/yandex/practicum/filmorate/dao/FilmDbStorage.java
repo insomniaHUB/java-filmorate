@@ -3,48 +3,47 @@ package ru.yandex.practicum.filmorate.dao;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.InternalServerException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
-import ru.yandex.practicum.filmorate.model.MotionPicture;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Repository
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbc;
     private final RowMapper<Film> mapper;
-    private final RowMapper<Genre> genreMapper;
-    private final RowMapper<MotionPicture> mpaMapper;
 
-    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> mapper,
-                         RowMapper<MotionPicture> mpaMapper, RowMapper<Genre> genreMapper) {
+    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> mapper) {
         this.jdbc = jdbc;
         this.mapper = mapper;
-        this.mpaMapper = mpaMapper;
-        this.genreMapper = genreMapper;
     }
 
     @Override
     public List<Film> getAllFilms() {
-        String query = "SELECT * FROM films";
+        String query = "SELECT f.*, m.rating FROM films AS f " +
+        "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id";
 
         List<Film> films = jdbc.query(query, mapper);
 
+        Set<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Long>> likesMap = loadLikesForFilms(filmIds);
+
         for (Film film : films) {
-            film.setMpa(loadMotionPicture(film.getMpa().getId()));
-            film.setLiked(loadLikes(film.getId()));
-            film.setGenres(loadGenreObjects(film.getId()));
+            film.setLiked(likesMap.getOrDefault(film.getId(), Set.of()));
         }
 
         return films;
@@ -52,15 +51,14 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film getFilmById(Long id) {
-        String query = "SELECT * FROM films WHERE film_id = ?";
+        String query = "SELECT f.*, m.rating FROM films AS f " +
+                "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE film_id = ?";
 
         try {
             Film film = jdbc.queryForObject(query, mapper, id);
 
             if (film != null) {
-                film.setMpa(loadMotionPicture(film.getMpa().getId()));
                 film.setLiked(loadLikes(film.getId()));
-                film.setGenres(loadGenreObjects(film.getId()));
             }
 
             return film;
@@ -71,16 +69,6 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film createFilm(Film film) {
-        if (mpaIdNotExist(film.getMpa().getId())) {
-            throw new NotFoundException("Возрастного рейтинга с таким id не существует");
-        }
-
-        for (Genre genre : film.getGenres()) {
-            if (genreIdNotExist(genre.getId())) {
-                throw new NotFoundException("Жанра с таким id не существует");
-            }
-        }
-
         String query = "INSERT INTO films (name, description, duration, release_date, mpa) VALUES (?, ?, ?, ?, ?)";
 
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
@@ -145,21 +133,20 @@ public class FilmDbStorage implements FilmStorage {
         jdbc.update(query, idUser, id);
     }
 
-    private MotionPicture loadMotionPicture(Long id) {
-        String query = "SELECT * FROM motion_picture_association WHERE mpa_id = ?";
+    private Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
+        String query = "SELECT film_id, user_id FROM likes WHERE film_id IN (:ids)";
 
-        return jdbc.queryForObject(query, mpaMapper, id);
-    }
+        NamedParameterJdbcTemplate namedJdbc = new NamedParameterJdbcTemplate(jdbc);
+        MapSqlParameterSource params = new MapSqlParameterSource("ids", filmIds);
 
-    private Set<Genre> loadGenreObjects(Long filmId) {
-        String query = """
-        SELECT g.genre_id, g.genre
-        FROM genres g
-        JOIN film_genres fg ON g.genre_id = fg.genre_id
-        WHERE fg.film_id = ?
-        """;
+        Map<Long, Set<Long>> result = new HashMap<>();
+        namedJdbc.query(query, params, rs -> {
+            Long filmId = rs.getLong("film_id");
+            Long userId = rs.getLong("user_id");
+            result.computeIfAbsent(filmId, k -> new HashSet<>()).add(userId);
+        });
 
-        return new HashSet<>(jdbc.query(query, genreMapper, filmId));
+        return result;
     }
 
     private void saveFilmGenres(Long filmId, Set<Genre> genres) {
@@ -176,31 +163,5 @@ public class FilmDbStorage implements FilmStorage {
         String query = "SELECT user_id FROM likes WHERE film_id = ?";
 
         return new HashSet<>(jdbc.queryForList(query, Long.class, filmId));
-    }
-
-    private boolean mpaIdNotExist(Long mpaId) {
-        if (mpaId == null) {
-            return false;
-        }
-        String query = "SELECT * FROM motion_picture_association WHERE mpa_id = ?";
-        try {
-            jdbc.queryForObject(query, mpaMapper, mpaId);
-            return false;
-        } catch (EmptyResultDataAccessException e) {
-            return true;
-        }
-    }
-
-    private boolean genreIdNotExist(Long genreId) {
-        if (genreId == null) {
-            return false;
-        }
-        String query = "SELECT * FROM genres WHERE genre_id = ?";
-        try {
-            jdbc.queryForObject(query, genreMapper, genreId);
-            return false;
-        } catch (EmptyResultDataAccessException e) {
-            return true;
-        }
     }
 }

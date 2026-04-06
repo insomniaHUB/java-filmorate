@@ -8,13 +8,14 @@ import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.GenreStorage;
+import ru.yandex.practicum.filmorate.storage.MpaStorage;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,26 +25,55 @@ public class FilmService {
     private static final int MAX_DESCRIPTION_LENGTH = 200;
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
+    private final GenreStorage genreStorage;
+    private final MpaStorage mpaStorage;
 
     @Autowired
     public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                       @Qualifier("userDbStorage") UserStorage userStorage) {
+                       @Qualifier("userDbStorage") UserStorage userStorage,
+                       @Qualifier("genreDbStorage") GenreStorage genreStorage,
+                       @Qualifier("mpaDbStorage") MpaStorage mpaStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
+        this.genreStorage = genreStorage;
+        this.mpaStorage = mpaStorage;
     }
 
     public Collection<Film> findAll() {
-        return filmStorage.getAllFilms();
+        Collection<Film> films = filmStorage.getAllFilms();
+
+        Set<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(genresMap.getOrDefault(film.getId(), Set.of()));
+        }
+
+        return films;
     }
 
     public Film findFilm(Long id) {
         validateFilm(id);
 
-        return filmStorage.getFilmById(id);
+        Film film = filmStorage.getFilmById(id);
+        if (film != null) {
+            film.setGenres(genreStorage.loadGenreObjects(film.getId()));
+        }
+
+        return film;
     }
 
     public Film create(Film film) {
         validate(film);
+        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
+            genreStorage.validateGenres(film.getGenres());
+        }
+        if (film.getMpa() != null && film.getMpa().getId() != null) {
+            mpaStorage.mpaIdNotExist(film.getMpa().getId());
+        }
 
         log.info("Создан новый фильм.");
         return filmStorage.createFilm(film);
@@ -64,6 +94,12 @@ public class FilmService {
                 return filmStorage.getFilmById(newFilm.getId());
             }
             validate(newFilm);
+            if (newFilm.getGenres() != null && !newFilm.getGenres().isEmpty()) {
+                genreStorage.validateGenres(newFilm.getGenres());
+            }
+            if (newFilm.getMpa() != null && newFilm.getMpa().getId() != null) {
+                mpaStorage.mpaIdNotExist(newFilm.getMpa().getId());
+            }
 
             log.info("Данные фильма успешно обновлены.");
             return filmStorage.updateFilm(newFilm);

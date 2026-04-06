@@ -39,4 +39,12 @@ public class MpaDbStorage implements MpaStorage {
 
         return results.getFirst();
     }
+
+    public void mpaIdNotExist(Long mpaId) {
+        String query = "SELECT * FROM motion_picture_association WHERE mpa_id = ?";
+        List<MotionPicture> mpa = jdbc.query(query, mapper, mpaId);
+        if (mpa.isEmpty()) {
+            throw new NotFoundException("Возрастного рейтинга с таким id не существует");
+        }
+    }
 }

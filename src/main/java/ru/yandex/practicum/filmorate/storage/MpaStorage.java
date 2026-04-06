@@ -8,4 +8,6 @@ public interface MpaStorage {
     Collection<MotionPicture> getAllMpa();
 
     MotionPicture getMpaById(Long id);
+
+    void mpaIdNotExist(Long mpaId);
 }
