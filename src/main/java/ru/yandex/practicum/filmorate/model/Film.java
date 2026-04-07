@@ -8,10 +8,12 @@ import java.util.Set;
 
 @Data
 public class Film {
-    Long id;
-    String name;
-    String description;
-    LocalDate releaseDate;
-    Integer duration;
-    Set<Long> liked = new HashSet<>();
+    private Long id;
+    private String name;
+    private String description;
+    private LocalDate releaseDate;
+    private Integer duration;
+    private Set<Long> liked = new HashSet<>();
+    private Set<Genre> genres = new HashSet<>();
+    private MotionPicture mpa;
 }
