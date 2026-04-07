@@ -14,6 +14,13 @@ import java.util.stream.Collectors;
 
 @Repository
 public class GenreDbStorage implements GenreStorage {
+    private static final String GET_ALL_GENRES_QUERY = "SELECT * FROM genres";
+    private static final String GET_GENRE_BY_ID_QUERY = "SELECT * FROM genres WHERE genre_id = ?";
+    private static final String LOAD_GENRES_FOR_FILMS_QUERY = "SELECT fg.film_id, g.genre_id, g.genre " +
+            "FROM film_genres AS fg JOIN genres AS g ON fg.genre_id = g.genre_id WHERE fg.film_id IN (:ids)";
+    private static final String LOAD_GENRE_QUERY = "SELECT g.genre_id, g.genre FROM genres AS g " +
+            "JOIN film_genres AS fg ON g.genre_id = fg.genre_id WHERE fg.film_id = ?";
+    private static final String GET_GENRES_ID_QUERY = "SELECT genre_id FROM genres";
     private final JdbcTemplate jdbc;
     private final RowMapper<Genre> mapper;
 
@@ -24,16 +31,12 @@ public class GenreDbStorage implements GenreStorage {
 
     @Override
     public Collection<Genre> getAllGenres() {
-        String query = "SELECT * FROM genres";
-
-        return jdbc.query(query, mapper);
+        return jdbc.query(GET_ALL_GENRES_QUERY, mapper);
     }
 
     @Override
     public Genre getGenreById(Long id) {
-        String query = "SELECT * FROM genres WHERE genre_id = ?";
-
-        List<Genre> results = jdbc.query(query, mapper, id);
+        List<Genre> results = jdbc.query(GET_GENRE_BY_ID_QUERY, mapper, id);
 
         if (results.isEmpty()) {
             throw new NotFoundException("Жанр с таким id не был найден");
@@ -44,18 +47,11 @@ public class GenreDbStorage implements GenreStorage {
 
     @Override
     public Map<Long, Set<Genre>> loadGenresForFilms(Set<Long> filmIds) {
-        String query = """
-            SELECT fg.film_id, g.genre_id, g.genre
-            FROM film_genres AS fg
-            JOIN genres AS g ON fg.genre_id = g.genre_id
-            WHERE fg.film_id IN (:ids)
-            """;
-
         NamedParameterJdbcTemplate namedJdbc = new NamedParameterJdbcTemplate(jdbc);
         MapSqlParameterSource params = new MapSqlParameterSource("ids", filmIds);
 
         Map<Long, Set<Genre>> result = new HashMap<>();
-        namedJdbc.query(query, params, rs -> {
+        namedJdbc.query(LOAD_GENRES_FOR_FILMS_QUERY, params, rs -> {
             Long filmId = rs.getLong("film_id");
             Genre genre = new Genre();
             genre.setId(rs.getLong("genre_id"));
@@ -68,14 +64,7 @@ public class GenreDbStorage implements GenreStorage {
 
     @Override
     public Set<Genre> loadGenreObjects(Long filmId) {
-        String query = """
-        SELECT g.genre_id, g.genre
-        FROM genres AS g
-        JOIN film_genres AS fg ON g.genre_id = fg.genre_id
-        WHERE fg.film_id = ?
-        """;
-
-        return new HashSet<>(jdbc.query(query, mapper, filmId));
+        return new HashSet<>(jdbc.query(LOAD_GENRE_QUERY, mapper, filmId));
     }
 
     @Override
@@ -98,8 +87,6 @@ public class GenreDbStorage implements GenreStorage {
     }
 
     private Set<Long> getExistingGenreIds() {
-        String query = "SELECT genre_id FROM genres";
-
-        return new HashSet<>(jdbc.queryForList(query, Long.class));
+        return new HashSet<>(jdbc.queryForList(GET_GENRES_ID_QUERY, Long.class));
     }
 }

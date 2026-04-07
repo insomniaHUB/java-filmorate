@@ -13,6 +13,8 @@ import java.util.List;
 
 @Repository
 public class MpaDbStorage implements MpaStorage {
+    private static final String GET_ALL_MPA_QUERY = "SELECT * FROM motion_picture_association";
+    private static final String GET_MPA_BY_ID_QUERY = "SELECT * FROM motion_picture_association WHERE mpa_id = ?";
     private final JdbcTemplate jdbc;
     private final RowMapper<MotionPicture> mapper;
 
@@ -23,15 +25,11 @@ public class MpaDbStorage implements MpaStorage {
     }
 
     public Collection<MotionPicture> getAllMpa() {
-        String query = "SELECT * FROM motion_picture_association";
-
-        return jdbc.query(query, mapper);
+        return jdbc.query(GET_ALL_MPA_QUERY, mapper);
     }
 
     public MotionPicture getMpaById(Long id) {
-        String query = "SELECT * FROM motion_picture_association WHERE mpa_id = ?";
-
-        List<MotionPicture> results = jdbc.query(query, mapper, id);
+        List<MotionPicture> results = jdbc.query(GET_MPA_BY_ID_QUERY, mapper, id);
 
         if (results.isEmpty()) {
             throw new NotFoundException("Рейтинг с таким id не был найден");
@@ -41,8 +39,7 @@ public class MpaDbStorage implements MpaStorage {
     }
 
     public void mpaIdNotExist(Long mpaId) {
-        String query = "SELECT * FROM motion_picture_association WHERE mpa_id = ?";
-        List<MotionPicture> mpa = jdbc.query(query, mapper, mpaId);
+        List<MotionPicture> mpa = jdbc.query(GET_MPA_BY_ID_QUERY, mapper, mpaId);
         if (mpa.isEmpty()) {
             throw new NotFoundException("Возрастного рейтинга с таким id не существует");
         }

@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -29,10 +28,10 @@ public class FilmService {
     private final MpaStorage mpaStorage;
 
     @Autowired
-    public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                       @Qualifier("userDbStorage") UserStorage userStorage,
-                       @Qualifier("genreDbStorage") GenreStorage genreStorage,
-                       @Qualifier("mpaDbStorage") MpaStorage mpaStorage) {
+    public FilmService(FilmStorage filmStorage,
+                       UserStorage userStorage,
+                       GenreStorage genreStorage,
+                       MpaStorage mpaStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
         this.genreStorage = genreStorage;

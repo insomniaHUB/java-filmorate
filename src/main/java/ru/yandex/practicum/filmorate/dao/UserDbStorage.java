@@ -19,6 +19,20 @@ import java.util.Set;
 
 @Repository
 public class UserDbStorage implements UserStorage {
+    private static final String GET_ALL_USERS_QUERY = "SELECT * FROM users";
+    private static final String GET_USER_BY_ID_QUERY = "SELECT * FROM users WHERE user_id = ?";
+    private static final String CREATE_USER_QUERY = "INSERT INTO users (email, login, name, birthday) " +
+            "VALUES (?, ?, ?, ?)";
+    private static final String UPDATE_USER_QUERY = "UPDATE users SET email = ?, login = ?, name = ?, birthday = ? " +
+            "WHERE user_id = ?";
+    private static final String DELETE_USER_QUERY = "DELETE FROM users WHERE user_id = ?";
+    private static final String ADD_FRIEND_QUERY = "INSERT INTO friendship (first_user_id, second_user_id, status) " +
+            "VALUES (?, ?, ?)";
+    private static final String UPDATE_FRIEND_QUERY = "UPDATE friendship SET status = ? " +
+            "WHERE first_user_id = ? AND second_user_id = ?";
+    private static final String DELETE_FRIEND_QUERY = "DELETE FROM friendship " +
+            "WHERE first_user_id = ? AND second_user_id = ?";
+    private static final String LOAD_FRIENDS_QUERY = "SELECT second_user_id FROM friendship WHERE first_user_id = ?";
     private final JdbcTemplate jdbc;
     private final RowMapper<User> mapper;
 
@@ -29,8 +43,7 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public List<User> getAllUsers() {
-        String query = "SELECT * FROM users";
-        List<User> users = jdbc.query(query, mapper);
+        List<User> users = jdbc.query(GET_ALL_USERS_QUERY, mapper);
 
         for (User user : users) {
             user.setFriends(loadFriends(user.getId()));
@@ -41,9 +54,8 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public User getUserById(Long id) {
-        String query = "SELECT * FROM users WHERE user_id = ?";
         try {
-            User user = jdbc.queryForObject(query, mapper, id);
+            User user = jdbc.queryForObject(GET_USER_BY_ID_QUERY, mapper, id);
             if (user != null) {
                 user.setFriends(loadFriends(id));
             }
@@ -56,11 +68,9 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public User createUser(User user) {
-        String query = "INSERT INTO users (email, login, name, birthday) VALUES (?, ?, ?, ?)";
-
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement ps = connection.prepareStatement(CREATE_USER_QUERY, Statement.RETURN_GENERATED_KEYS);
             ps.setObject(1, user.getEmail());
             ps.setObject(2, user.getLogin());
             ps.setObject(3, user.getName());
@@ -79,8 +89,7 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public User updateUser(User newUser) {
-        String query = "UPDATE users SET email = ?, login = ?, name = ?, birthday = ? WHERE user_id = ?";
-        int rowsUpdated = jdbc.update(query,
+        int rowsUpdated = jdbc.update(UPDATE_USER_QUERY,
                 newUser.getEmail(),
                 newUser.getLogin(),
                 newUser.getName(),
@@ -96,31 +105,25 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public void deleteUser(Long id) {
-        String query = "DELETE FROM users WHERE user_id = ?";
-        jdbc.update(query, id);
+        jdbc.update(DELETE_USER_QUERY, id);
     }
 
     @Override
     public void addFriend(Long id, Long friendId) {
-        String query = "INSERT INTO friendship (first_user_id, second_user_id, status) VALUES (?, ?, ?)";
-        jdbc.update(query, id, friendId, "НЕПОДТВЕРЖДЕННАЯ");
+        jdbc.update(ADD_FRIEND_QUERY, id, friendId, "НЕПОДТВЕРЖДЕННАЯ");
     }
 
     @Override
     public void updateFriend(Long id, Long friendId) {
-        String query = "UPDATE friendship SET status = ? WHERE first_user_id = ? AND second_user_id = ?";
-        jdbc.update(query, "ПОДТВЕРЖДЕННАЯ", id, friendId);
+        jdbc.update(UPDATE_FRIEND_QUERY, "ПОДТВЕРЖДЕННАЯ", id, friendId);
     }
 
     @Override
     public void deleteFriend(Long id, Long friendId) {
-        String query = "DELETE FROM friendship WHERE first_user_id = ? AND second_user_id = ?";
-        jdbc.update(query, id, friendId);
+        jdbc.update(DELETE_FRIEND_QUERY, id, friendId);
     }
 
     private Set<Long> loadFriends(Long userId) {
-        String query = "SELECT second_user_id FROM friendship WHERE first_user_id = ?";
-
-        return new HashSet<>(jdbc.queryForList(query, Long.class, userId));
+        return new HashSet<>(jdbc.queryForList(LOAD_FRIENDS_QUERY, Long.class, userId));
     }
 }

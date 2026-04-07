@@ -21,6 +21,20 @@ import java.util.stream.Collectors;
 
 @Repository
 public class FilmDbStorage implements FilmStorage {
+    private static final String GET_ALL_FILMS_QUERY = "SELECT f.*, m.rating FROM films AS f " +
+            "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id";
+    private static final String GET_FILM_BY_ID_QUERY = "SELECT f.*, m.rating FROM films AS f " +
+            "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE film_id = ?";
+    private static final String CREATE_FILM_QUERY = "INSERT INTO films (name, description, " +
+            "duration, release_date, mpa) VALUES (?, ?, ?, ?, ?)";
+    private static final String UPDATE_FILM_QUERY = "UPDATE films SET name = ?, description = ?, duration = ?, " +
+            "release_date = ?, mpa = ? WHERE film_id = ?";
+    private static final String DELETE_FILM_QUERY = "DELETE FROM films WHERE film_id = ?";
+    private static final String ADD_LIKE_QUERY = "INSERT INTO likes (user_id, film_id) VALUES (?, ?)";
+    private static final String DELETE_LIKE_QUERY = "DELETE FROM likes WHERE user_id = ? AND film_id = ?";
+    private static final String LOAD_LIKES_FOR_FILM_QUERY = "SELECT film_id, user_id FROM likes WHERE film_id IN (:ids)";
+    private static final String SAVE_FILM_GENRES_QUERY = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
+    private static final String LOAD_LIKES_QUERY = "SELECT user_id FROM likes WHERE film_id = ?";
     private final JdbcTemplate jdbc;
     private final RowMapper<Film> mapper;
 
@@ -31,10 +45,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getAllFilms() {
-        String query = "SELECT f.*, m.rating FROM films AS f " +
-        "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id";
-
-        List<Film> films = jdbc.query(query, mapper);
+        List<Film> films = jdbc.query(GET_ALL_FILMS_QUERY, mapper);
 
         Set<Long> filmIds = films.stream()
                 .map(Film::getId)
@@ -51,11 +62,8 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film getFilmById(Long id) {
-        String query = "SELECT f.*, m.rating FROM films AS f " +
-                "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE film_id = ?";
-
         try {
-            Film film = jdbc.queryForObject(query, mapper, id);
+            Film film = jdbc.queryForObject(GET_FILM_BY_ID_QUERY, mapper, id);
 
             if (film != null) {
                 film.setLiked(loadLikes(film.getId()));
@@ -69,12 +77,10 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film createFilm(Film film) {
-        String query = "INSERT INTO films (name, description, duration, release_date, mpa) VALUES (?, ?, ?, ?, ?)";
-
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
 
         jdbc.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement ps = connection.prepareStatement(CREATE_FILM_QUERY, Statement.RETURN_GENERATED_KEYS);
             ps.setObject(1, film.getName());
             ps.setObject(2, film.getDescription());
             ps.setObject(3, film.getDuration());
@@ -99,8 +105,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film updateFilm(Film newFilm) {
-        String query = "UPDATE films SET name = ?, description = ?, duration = ?, release_date = ?, mpa = ? WHERE film_id = ?";
-        int rowsUpdated = jdbc.update(query,
+        int rowsUpdated = jdbc.update(UPDATE_FILM_QUERY,
                 newFilm.getName(),
                 newFilm.getDescription(),
                 newFilm.getDuration(),
@@ -117,30 +122,25 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public void deleteFilm(Long id) {
-        String query = "DELETE FROM films WHERE film_id = ?";
-        jdbc.update(query, id);
+        jdbc.update(DELETE_FILM_QUERY, id);
     }
 
     @Override
     public void addLike(Long id, Long idUser) {
-        String query = "INSERT INTO likes (user_id, film_id) VALUES (?, ?)";
-        jdbc.update(query, idUser, id);
+        jdbc.update(ADD_LIKE_QUERY, idUser, id);
     }
 
     @Override
     public void deleteLike(Long id, Long idUser) {
-        String query = "DELETE FROM likes WHERE user_id = ? AND film_id = ?";
-        jdbc.update(query, idUser, id);
+        jdbc.update(DELETE_LIKE_QUERY, idUser, id);
     }
 
     private Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
-        String query = "SELECT film_id, user_id FROM likes WHERE film_id IN (:ids)";
-
         NamedParameterJdbcTemplate namedJdbc = new NamedParameterJdbcTemplate(jdbc);
         MapSqlParameterSource params = new MapSqlParameterSource("ids", filmIds);
 
         Map<Long, Set<Long>> result = new HashMap<>();
-        namedJdbc.query(query, params, rs -> {
+        namedJdbc.query(LOAD_LIKES_FOR_FILM_QUERY, params, rs -> {
             Long filmId = rs.getLong("film_id");
             Long userId = rs.getLong("user_id");
             result.computeIfAbsent(filmId, k -> new HashSet<>()).add(userId);
@@ -150,18 +150,14 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     private void saveFilmGenres(Long filmId, Set<Genre> genres) {
-        String query = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
-
         Set<Long> genreIds = genres.stream().map(Genre::getId).collect(Collectors.toSet());
 
         for (Long genreId : genreIds) {
-            jdbc.update(query, filmId, genreId);
+            jdbc.update(SAVE_FILM_GENRES_QUERY, filmId, genreId);
         }
     }
 
     private Set<Long> loadLikes(Long filmId) {
-        String query = "SELECT user_id FROM likes WHERE film_id = ?";
-
-        return new HashSet<>(jdbc.queryForList(query, Long.class, filmId));
+        return new HashSet<>(jdbc.queryForList(LOAD_LIKES_QUERY, Long.class, filmId));
     }
 }
