@@ -59,4 +59,9 @@ public class UserController {
                              @PathVariable Long friendId) {
         userService.deleteFriend(id, friendId);
     }
+
+    @DeleteMapping("/{userId}")
+    public void deleteUser(@PathVariable Long userId) {
+        userService.deleteUser(userId);
+    }
 }

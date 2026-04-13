@@ -105,6 +105,11 @@ public class UserService {
         userStorage.getUserById(friendId).getFriends().remove(id);
     }
 
+    public void deleteUser(Long userId) {
+        validateUser(userId);
+        userStorage.deleteUser(userId);
+    }
+
     private void validate(User user) {
         if (user.getEmail() == null || !user.getEmail().contains("@") || user.getEmail().isBlank()
                 || user.getEmail().contains(" ") || user.getBirthday().isAfter(LocalDate.now())) {

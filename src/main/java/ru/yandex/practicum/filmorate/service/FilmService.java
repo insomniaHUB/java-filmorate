@@ -130,6 +130,11 @@ public class FilmService {
                 .collect(Collectors.toList());
     }
 
+    public void deleteFilm(Long filmId) {
+        validateFilm(filmId);
+        filmStorage.deleteFilm(filmId);
+    }
+
     private void validate(Film film) {
         if (film.getName() == null || film.getName().isBlank() || film.getDescription().length() > MAX_DESCRIPTION_LENGTH
                 || film.getReleaseDate().isBefore(THE_EARLIEST_DATA_RELEASE)
