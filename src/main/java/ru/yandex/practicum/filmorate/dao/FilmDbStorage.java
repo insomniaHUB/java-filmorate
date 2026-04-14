@@ -61,6 +61,52 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
+    public List<Film> getMostPopularFilms(int count, Long genreId, Long year) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT f.*, m.rating " +
+                        "FROM films AS f " +
+                        "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id " +
+                        "LEFT JOIN likes AS l ON f.film_id = l.film_id "
+        );
+        List<Object> params = new ArrayList<>();
+
+        if (genreId != null) {
+            sql.append("JOIN film_genres fg ON f.film_id = fg.film_id ");
+        }
+
+        sql.append("WHERE 1=1 ");
+
+        if (genreId != null) {
+            sql.append("AND fg.genre_id = ? ");
+            params.add(genreId);
+        }
+
+        if (year != null) {
+            sql.append("AND EXTRACT(YEAR FROM f.release_date) = ? ");
+            params.add(year);
+        }
+
+        sql.append("GROUP BY f.film_id, m.rating " +
+                "ORDER BY COUNT(l.user_id) DESC " +
+                "LIMIT ?");
+        params.add(count);
+
+        List<Film> films = jdbc.query(sql.toString(), mapper, params.toArray());
+
+        if (!films.isEmpty()) {
+            Set<Long> filmIds = films.stream()
+                    .map(Film::getId)
+                    .collect(Collectors.toSet());
+            Map<Long, Set<Long>> likesMap = loadLikesForFilms(filmIds);
+            for (Film film : films) {
+                film.setLiked(likesMap.getOrDefault(film.getId(), Set.of()));
+            }
+        }
+
+        return films;
+    }
+
+    @Override
     public Film getFilmById(Long id) {
         try {
             Film film = jdbc.queryForObject(GET_FILM_BY_ID_QUERY, mapper, id);

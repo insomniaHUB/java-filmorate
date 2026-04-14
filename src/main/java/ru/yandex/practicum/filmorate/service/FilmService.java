@@ -123,11 +123,24 @@ public class FilmService {
         filmStorage.getFilmById(id).getLiked().remove(idUser);
     }
 
-    public List<Film> getMostPopularFilms(int count) {
-        return filmStorage.getAllFilms().stream()
-                .sorted(Comparator.comparingInt((Film film) -> film.getLiked().size()).reversed())
-                .limit(count)
-                .collect(Collectors.toList());
+    public List<Film> getMostPopularFilms(int count, Long genreId, Long year) {
+        List<Film> films = filmStorage.getMostPopularFilms(count, genreId, year);
+
+        if (films.isEmpty()) {
+            return films;
+        }
+
+        Set<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(genresMap.getOrDefault(film.getId(), new HashSet<>()));
+        }
+
+        return films;
     }
 
     public void deleteFilm(Long filmId) {
