@@ -3,6 +3,8 @@ package ru.yandex.practicum.filmorate.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
@@ -105,6 +107,25 @@ public class FilmService {
         }
         log.warn("Фильм с Id = " + newFilm.getId() + " не был найден!");
         throw new NotFoundException("Фильм с Id = " + newFilm.getId() + " не был найден!");
+    }
+
+    public Collection<Film> commonFilmsByPopularity(Long userId,Long friendId) {
+        validateUser(userId);
+        validateUser(friendId);
+
+        List<Film> films = filmStorage.commonFilmsByPopularity(userId, friendId);
+
+        Set<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(genresMap.getOrDefault(film.getId(), Set.of()));
+        }
+
+        return films;
     }
 
     public void addLike(Long id, Long idUser) {
