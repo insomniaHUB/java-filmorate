@@ -110,8 +110,9 @@ public class ReviewDbStorage implements ReviewStorage {
         jdbcTemplate.update(secondQuery, id);
     }
 
-    public boolean checkReviewLike(Long reviewId, Long userId) {
-        String query = "SELECT COUNT(*) FROM review_rating WHERE review_id = ? AND user_id = ?";
-        return jdbcTemplate.queryForObject(query, Integer.class, reviewId, userId) > 0;
+    public boolean checkReviewLike(Long reviewId, Long userId, boolean isPositive) {
+        String query = "SELECT COUNT(*) FROM review_rating WHERE review_id = ? AND user_id = ? AND is_positive = ?";
+        Integer count = jdbcTemplate.queryForObject(query, Integer.class, reviewId, userId, isPositive);
+        return count > 0;
     }
 }

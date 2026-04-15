@@ -43,10 +43,11 @@ public class ReviewService {
     public void addReviewLike(Long id, Long userId) {
         getReviewById(id);
         userService.findUser(userId);
-        if (!reviewStorage.checkReviewLike(id, userId)) {
+        if (reviewStorage.checkReviewLike(id, userId, false)) {
+            deleteDislikeReview(id, userId);
+        }
+        if (!reviewStorage.checkReviewLike(id, userId, true)) {
             reviewStorage.addReviewLike(id, userId);
-        } else {
-            log.info("Пользователь не может поставить положительную оценку дважды. id - {}", userId);
         }
     }
 
@@ -54,7 +55,7 @@ public class ReviewService {
     public void deleteReviewLike(Long id, Long userId) {
         getReviewById(id);
         userService.findUser(userId);
-        if (reviewStorage.checkReviewLike(id, userId)) {
+        if (reviewStorage.checkReviewLike(id, userId, true)) {
             reviewStorage.deleteReviewLike(id, userId);
         } else {
             log.info("Оценка не найдена, удаление невозможно. userId - {}, reviewId - {}", userId, id);
@@ -65,7 +66,10 @@ public class ReviewService {
     public void dislikeReview(Long id, Long userId) {
         getReviewById(id);
         userService.findUser(userId);
-        if (!reviewStorage.checkReviewLike(id, userId)) {
+        if (reviewStorage.checkReviewLike(id, userId, true)) {
+            deleteReviewLike(id, userId);
+        }
+        if (!reviewStorage.checkReviewLike(id, userId, false)) {
             reviewStorage.dislikeReview(id, userId);
         } else {
             log.info("Пользователь не может поставить отрицательную оценку дважды. id - {}", userId);
@@ -76,7 +80,7 @@ public class ReviewService {
     public void deleteDislikeReview(Long id, Long userId) {
         getReviewById(id);
         userService.findUser(userId);
-        if (reviewStorage.checkReviewLike(id, userId)) {
+        if (reviewStorage.checkReviewLike(id, userId, false)) {
             reviewStorage.deleteDislikeReview(id, userId);
         } else {
             log.info("Отрицательная оценка не найдена, удаление невозможно. userId - {}, reviewId - {}", userId, id);
