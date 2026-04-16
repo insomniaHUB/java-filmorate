@@ -16,28 +16,28 @@ public class ErrorHandler {
     @ExceptionHandler
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleValidation(final ValidationException e) {
-        return Map.of("Exception:", "Ошибка валидации",
-                "message:", e.getMessage());
+        return Map.of("Exception", "Ошибка валидации",
+                "message", e.getMessage());
     }
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, String> handleNotFound(final NotFoundException e) {
-        return Map.of("Exception:", "Объект не найден",
-                "message:", e.getMessage());
+        return Map.of("error", "Объект не найден",
+                "message", e.getMessage());
     }
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, String> handleInternalServerError(final InternalServerException e) {
-        return Map.of("Exception:", "Ошибка на стороне сервера",
-                "message:", e.getMessage());
+        return Map.of("Exception", "Ошибка на стороне сервера",
+                "message", e.getMessage());
     }
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, String> handleUnexpectedError(final Throwable e) {
-        return Map.of("Exception:", "Непредвиденная ошибка",
-                "message:", e.getMessage());
+        return Map.of("Exception", "Непредвиденная ошибка",
+                "message", e.getMessage());
     }
 }
