@@ -81,7 +81,11 @@ public class DirectorDbStorage implements DirectorStorage {
 
     @Override
     public void deleteDirector(Long id) {
-        jdbc.update(DELETE_DIRECTOR_QUERY, id);
+        int rowsDeleted = jdbc.update(DELETE_DIRECTOR_QUERY, id);
+
+        if (rowsDeleted == 0) {
+            throw new NotFoundException("Не удалось удалить данные режиссера");
+        }
     }
 
     @Override
