@@ -40,7 +40,7 @@ public class FilmController {
                                           @RequestParam String sortBy) {
         return filmService.getAllDirectorFilms(directorId, sortBy);
     }
-  
+
     @GetMapping("/common")
     public Collection<Film> commonFilmsByPopularity(@RequestParam Long userId,
                                                     @RequestParam Long friendId) {
