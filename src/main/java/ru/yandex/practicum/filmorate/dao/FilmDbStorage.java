@@ -25,6 +25,10 @@ public class FilmDbStorage implements FilmStorage {
             "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id";
     private static final String GET_FILM_BY_ID_QUERY = "SELECT f.*, m.rating FROM films AS f " +
             "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE film_id = ?";
+    private static final String GET_COMMON_FILMS_QUERY = "SELECT f.*, m.rating FROM films AS f LEFT JOIN " +
+            "motion_picture_association AS m ON f.mpa = m.mpa_id WHERE f.film_id IN (SELECT l1.film_id FROM likes AS l1 " +
+            " JOIN likes AS l2 ON l1.film_id = l2.film_id WHERE l1.user_id = ? AND l2.user_id = ?) ORDER BY (SELECT COUNT(*) " +
+            " FROM likes AS l WHERE l.film_id = f.film_id) DESC;";
     private static final String CREATE_FILM_QUERY = "INSERT INTO films (name, description, " +
             "duration, release_date, mpa) VALUES (?, ?, ?, ?, ?)";
     private static final String UPDATE_FILM_QUERY = "UPDATE films SET name = ?, description = ?, duration = ?, " +
@@ -35,6 +39,7 @@ public class FilmDbStorage implements FilmStorage {
     private static final String LOAD_LIKES_FOR_FILM_QUERY = "SELECT film_id, user_id FROM likes WHERE film_id IN (:ids)";
     private static final String SAVE_FILM_GENRES_QUERY = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
     private static final String LOAD_LIKES_QUERY = "SELECT user_id FROM likes WHERE film_id = ?";
+
     private final JdbcTemplate jdbc;
     private final RowMapper<Film> mapper;
 
@@ -55,6 +60,52 @@ public class FilmDbStorage implements FilmStorage {
 
         for (Film film : films) {
             film.setLiked(likesMap.getOrDefault(film.getId(), Set.of()));
+        }
+
+        return films;
+    }
+
+    @Override
+    public List<Film> getMostPopularFilms(int count, Long genreId, Long year) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT f.*, m.rating " +
+                        "FROM films AS f " +
+                        "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id " +
+                        "LEFT JOIN likes AS l ON f.film_id = l.film_id "
+        );
+        List<Object> params = new ArrayList<>();
+
+        if (genreId != null) {
+            sql.append("JOIN film_genres fg ON f.film_id = fg.film_id ");
+        }
+
+        sql.append("WHERE 1=1 ");
+
+        if (genreId != null) {
+            sql.append("AND fg.genre_id = ? ");
+            params.add(genreId);
+        }
+
+        if (year != null) {
+            sql.append("AND EXTRACT(YEAR FROM f.release_date) = ? ");
+            params.add(year);
+        }
+
+        sql.append("GROUP BY f.film_id, m.rating " +
+                "ORDER BY COUNT(l.user_id) DESC " +
+                "LIMIT ?");
+        params.add(count);
+
+        List<Film> films = jdbc.query(sql.toString(), mapper, params.toArray());
+
+        if (!films.isEmpty()) {
+            Set<Long> filmIds = films.stream()
+                    .map(Film::getId)
+                    .collect(Collectors.toSet());
+            Map<Long, Set<Long>> likesMap = loadLikesForFilms(filmIds);
+            for (Film film : films) {
+                film.setLiked(likesMap.getOrDefault(film.getId(), Set.of()));
+            }
         }
 
         return films;
@@ -133,6 +184,11 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public void deleteLike(Long id, Long idUser) {
         jdbc.update(DELETE_LIKE_QUERY, idUser, id);
+    }
+
+    @Override
+    public List<Film> commonFilmsByPopularity(Long userId, Long friendId) {
+        return jdbc.query(GET_COMMON_FILMS_QUERY, mapper, userId, friendId);
     }
 
     private Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {

@@ -102,6 +102,25 @@ public class FilmService {
         throw new NotFoundException("Фильм с Id = " + newFilm.getId() + " не был найден!");
     }
 
+    public Collection<Film> commonFilmsByPopularity(Long userId,Long friendId) {
+        validateUser(userId);
+        validateUser(friendId);
+
+        List<Film> films = filmStorage.commonFilmsByPopularity(userId, friendId);
+
+        Set<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(genresMap.getOrDefault(film.getId(), Set.of()));
+        }
+
+        return films;
+    }
+
     public void addLike(Long id, Long idUser) {
         validateFilm(id);
         validateUser(idUser);
@@ -134,11 +153,29 @@ public class FilmService {
                 .build());
     }
 
-    public List<Film> getMostPopularFilms(int count) {
-        return filmStorage.getAllFilms().stream()
-                .sorted(Comparator.comparingInt((Film film) -> film.getLiked().size()).reversed())
-                .limit(count)
-                .collect(Collectors.toList());
+    public List<Film> getMostPopularFilms(int count, Long genreId, Long year) {
+        List<Film> films = filmStorage.getMostPopularFilms(count, genreId, year);
+
+        if (films.isEmpty()) {
+            return films;
+        }
+
+        Set<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(genresMap.getOrDefault(film.getId(), new HashSet<>()));
+        }
+
+        return films;
+    }
+
+    public void deleteFilm(Long filmId) {
+        validateFilm(filmId);
+        filmStorage.deleteFilm(filmId);
     }
 
     private void validate(Film film) {
