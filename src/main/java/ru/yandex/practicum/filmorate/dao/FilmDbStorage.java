@@ -205,13 +205,11 @@ public class FilmDbStorage implements FilmStorage {
         return new ArrayList<>(jdbc.query(LOAD_FILMS_FOR_DIRECTOR_QUERY, mapper, id));
     }
 
-    @Override
-    public Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
     public List<Film> commonFilmsByPopularity(Long userId, Long friendId) {
         return jdbc.query(GET_COMMON_FILMS_QUERY, mapper, userId, friendId);
     }
 
-    private Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
+    public Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
         NamedParameterJdbcTemplate namedJdbc = new NamedParameterJdbcTemplate(jdbc);
         MapSqlParameterSource params = new MapSqlParameterSource("ids", filmIds);
 
