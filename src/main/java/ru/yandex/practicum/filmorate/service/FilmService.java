@@ -117,6 +117,25 @@ public class FilmService {
         throw new NotFoundException("Фильм с Id = " + newFilm.getId() + " не был найден!");
     }
 
+    public Collection<Film> commonFilmsByPopularity(Long userId,Long friendId) {
+        validateUser(userId);
+        validateUser(friendId);
+
+        List<Film> films = filmStorage.commonFilmsByPopularity(userId, friendId);
+
+        Set<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(genresMap.getOrDefault(film.getId(), Set.of()));
+        }
+
+        return films;
+    }
+
     public void addLike(Long id, Long idUser) {
         validateFilm(id);
         validateUser(idUser);

@@ -40,6 +40,12 @@ public class FilmController {
                                           @RequestParam String sortBy) {
         return filmService.getAllDirectorFilms(directorId, sortBy);
     }
+  
+    @GetMapping("/common")
+    public Collection<Film> commonFilmsByPopularity(@RequestParam Long userId,
+                                                    @RequestParam Long friendId) {
+        return filmService.commonFilmsByPopularity(userId, friendId);
+    }
 
     @PostMapping
     public Film create(@RequestBody Film film) {

@@ -26,6 +26,10 @@ public class FilmDbStorage implements FilmStorage {
             "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id ";
     private static final String GET_FILM_BY_ID_QUERY = "SELECT f.*, m.rating FROM films AS f " +
             "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE film_id = ?";
+    private static final String GET_COMMON_FILMS_QUERY = "SELECT f.*, m.rating FROM films AS f LEFT JOIN " +
+            "motion_picture_association AS m ON f.mpa = m.mpa_id WHERE f.film_id IN (SELECT l1.film_id FROM likes AS l1 " +
+            " JOIN likes AS l2 ON l1.film_id = l2.film_id WHERE l1.user_id = ? AND l2.user_id = ?) ORDER BY (SELECT COUNT(*) " +
+            " FROM likes AS l WHERE l.film_id = f.film_id) DESC;";
     private static final String CREATE_FILM_QUERY = "INSERT INTO films (name, description, " +
             "duration, release_date, mpa) VALUES (?, ?, ?, ?, ?)";
     private static final String UPDATE_FILM_QUERY = "UPDATE films SET name = ?, description = ?, duration = ?, " +
@@ -41,6 +45,7 @@ public class FilmDbStorage implements FilmStorage {
             "JOIN film_directors AS fd ON f.film_id=fd.film_id " +
             "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE fd.director_id = ?";
     private static final String DELETE_FILM_DIRECTORS_QUERY = "DELETE FROM film_directors WHERE film_id = ?";
+
     private final JdbcTemplate jdbc;
     private final RowMapper<Film> mapper;
 
@@ -202,6 +207,11 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
+    public List<Film> commonFilmsByPopularity(Long userId, Long friendId) {
+        return jdbc.query(GET_COMMON_FILMS_QUERY, mapper, userId, friendId);
+    }
+
+    private Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
         NamedParameterJdbcTemplate namedJdbc = new NamedParameterJdbcTemplate(jdbc);
         MapSqlParameterSource params = new MapSqlParameterSource("ids", filmIds);
 
