@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.model.Review;
+import ru.yandex.practicum.filmorate.model.feed.Event;
+import ru.yandex.practicum.filmorate.model.feed.EventType;
+import ru.yandex.practicum.filmorate.model.feed.OperationType;
 import ru.yandex.practicum.filmorate.storage.ReviewStorage;
 
 import java.util.List;
@@ -14,6 +17,7 @@ import java.util.List;
 @Slf4j
 public class ReviewService {
     private final ReviewStorage reviewStorage;
+    private final FeedService feedService;
     private final UserService userService;
     private final FilmService filmService;
 
@@ -28,15 +32,39 @@ public class ReviewService {
     public Review addReview(Review review) {
         userService.findUser(review.getUserId());
         filmService.findFilm(review.getFilmId());
-        return reviewStorage.addReview(review);
+        Review addedReview = reviewStorage.addReview(review);
+        feedService.addEvent(Event.builder()
+                .timestamp(System.currentTimeMillis())
+                .userId(addedReview.getUserId())
+                .eventType(EventType.REVIEW)
+                .operation(OperationType.ADD)
+                .entityId(addedReview.getReviewId())
+                .build());
+        return addedReview;
     }
 
     public Review updateReview(Review review) {
-        return reviewStorage.updateReview(review);
+        Review updatedreview = reviewStorage.updateReview(review);
+        feedService.addEvent(Event.builder()
+                .timestamp(System.currentTimeMillis())
+                .userId(updatedreview.getUserId())
+                .eventType(EventType.REVIEW)
+                .operation(OperationType.UPDATE)
+                .entityId(updatedreview.getReviewId())
+                .build());
+        return updatedreview;
     }
 
     public void deleteReviewById(Long id) {
+        Review review = getReviewById(id);
         reviewStorage.deleteReviewById(id);
+        feedService.addEvent(Event.builder()
+                .timestamp(System.currentTimeMillis())
+                .userId(review.getUserId())
+                .eventType(EventType.REVIEW)
+                .operation(OperationType.REMOVE)
+                .entityId(id)
+                .build());
     }
 
     @Transactional

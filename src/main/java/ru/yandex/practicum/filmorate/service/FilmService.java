@@ -1,7 +1,7 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -9,13 +9,22 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.feed.Event;
+import ru.yandex.practicum.filmorate.model.feed.EventType;
+import ru.yandex.practicum.filmorate.model.feed.OperationType;
+import ru.yandex.practicum.filmorate.storage.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.GenreStorage;
+import ru.yandex.practicum.filmorate.storage.MpaStorage;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
 import ru.yandex.practicum.filmorate.storage.*;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class FilmService {
     private static final LocalDate THE_EARLIEST_DATA_RELEASE = LocalDate.of(1895, 12, 28);
@@ -24,20 +33,8 @@ public class FilmService {
     private final UserStorage userStorage;
     private final GenreStorage genreStorage;
     private final MpaStorage mpaStorage;
+    private final FeedService feedService;
     private final DirectorStorage directorStorage;
-
-    @Autowired
-    public FilmService(FilmStorage filmStorage,
-                       UserStorage userStorage,
-                       GenreStorage genreStorage,
-                       MpaStorage mpaStorage,
-                       DirectorStorage directorStorage) {
-        this.filmStorage = filmStorage;
-        this.userStorage = userStorage;
-        this.genreStorage = genreStorage;
-        this.mpaStorage = mpaStorage;
-        this.directorStorage = directorStorage;
-    }
 
     public Collection<Film> findAll() {
         Collection<Film> films = filmStorage.getAllFilms();
@@ -117,7 +114,7 @@ public class FilmService {
         throw new NotFoundException("Фильм с Id = " + newFilm.getId() + " не был найден!");
     }
 
-    public Collection<Film> commonFilmsByPopularity(Long userId,Long friendId) {
+    public Collection<Film> commonFilmsByPopularity(Long userId, Long friendId) {
         validateUser(userId);
         validateUser(friendId);
 
@@ -142,6 +139,14 @@ public class FilmService {
 
         filmStorage.addLike(id, idUser);
         filmStorage.getFilmById(id).getLiked().add(idUser);
+
+        feedService.addEvent(Event.builder()
+                .timestamp(Instant.now().toEpochMilli())
+                .userId(idUser)
+                .eventType(EventType.LIKE)
+                .operation(OperationType.ADD)
+                .entityId(id)
+                .build());
     }
 
     public void deleteLike(Long id, Long idUser) {
@@ -150,6 +155,14 @@ public class FilmService {
 
         filmStorage.deleteLike(id, idUser);
         filmStorage.getFilmById(id).getLiked().remove(idUser);
+
+        feedService.addEvent(Event.builder()
+                .timestamp(Instant.now().toEpochMilli())
+                .userId(idUser)
+                .eventType(EventType.LIKE)
+                .operation(OperationType.REMOVE)
+                .entityId(id)
+                .build());
     }
 
     public List<Film> getMostPopularFilms(int count, Long genreId, Long year) {
