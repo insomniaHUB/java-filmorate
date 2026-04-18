@@ -28,6 +28,6 @@ public interface FilmStorage {
     List<Film> loadFilmsForDirector(Long id);
 
     Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds);
-  
+
     List<Film> commonFilmsByPopularity(Long userId, Long friendId);
 }
