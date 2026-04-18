@@ -4,6 +4,8 @@ import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public interface FilmStorage {
 
@@ -22,6 +24,10 @@ public interface FilmStorage {
     void addLike(Long id, Long idUser);
 
     void deleteLike(Long id, Long idUser);
+
+    List<Film> loadFilmsForDirector(Long id);
+
+    Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds);
 
     List<Film> commonFilmsByPopularity(Long userId, Long friendId);
 }

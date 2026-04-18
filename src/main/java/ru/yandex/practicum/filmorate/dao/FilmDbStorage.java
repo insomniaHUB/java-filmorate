@@ -9,6 +9,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.InternalServerException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
 @Repository
 public class FilmDbStorage implements FilmStorage {
     private static final String GET_ALL_FILMS_QUERY = "SELECT f.*, m.rating FROM films AS f " +
-            "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id";
+            "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id ";
     private static final String GET_FILM_BY_ID_QUERY = "SELECT f.*, m.rating FROM films AS f " +
             "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE film_id = ?";
     private static final String GET_COMMON_FILMS_QUERY = "SELECT f.*, m.rating FROM films AS f LEFT JOIN " +
@@ -38,7 +39,12 @@ public class FilmDbStorage implements FilmStorage {
     private static final String DELETE_LIKE_QUERY = "DELETE FROM likes WHERE user_id = ? AND film_id = ?";
     private static final String LOAD_LIKES_FOR_FILM_QUERY = "SELECT film_id, user_id FROM likes WHERE film_id IN (:ids)";
     private static final String SAVE_FILM_GENRES_QUERY = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
+    private static final String SAVE_FILM_DIRECTORS_QUERY = "INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)";
     private static final String LOAD_LIKES_QUERY = "SELECT user_id FROM likes WHERE film_id = ?";
+    private static final String LOAD_FILMS_FOR_DIRECTOR_QUERY = "SELECT f.*, m.rating FROM films AS f " +
+            "JOIN film_directors AS fd ON f.film_id=fd.film_id " +
+            "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE fd.director_id = ?";
+    private static final String DELETE_FILM_DIRECTORS_QUERY = "DELETE FROM film_directors WHERE film_id = ?";
 
     private final JdbcTemplate jdbc;
     private final RowMapper<Film> mapper;
@@ -150,6 +156,9 @@ public class FilmDbStorage implements FilmStorage {
         if (film.getGenres() != null && !film.getGenres().isEmpty()) {
             saveFilmGenres(id, film.getGenres());
         }
+        if (film.getDirectors() != null && !film.getDirectors().isEmpty()) {
+            saveFilmDirectors(id, film.getDirectors());
+        }
 
         return film;
     }
@@ -166,6 +175,11 @@ public class FilmDbStorage implements FilmStorage {
         );
         if (rowsUpdated == 0) {
             throw new NotFoundException("Не удалось обновить данные фильма");
+        }
+
+        jdbc.update(DELETE_FILM_DIRECTORS_QUERY, newFilm.getId());
+        if (newFilm.getDirectors() != null && !newFilm.getDirectors().isEmpty()) {
+            saveFilmDirectors(newFilm.getId(), newFilm.getDirectors());
         }
 
         return newFilm;
@@ -187,11 +201,15 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
+    public List<Film> loadFilmsForDirector(Long id) {
+        return new ArrayList<>(jdbc.query(LOAD_FILMS_FOR_DIRECTOR_QUERY, mapper, id));
+    }
+
     public List<Film> commonFilmsByPopularity(Long userId, Long friendId) {
         return jdbc.query(GET_COMMON_FILMS_QUERY, mapper, userId, friendId);
     }
 
-    private Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
+    public Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
         NamedParameterJdbcTemplate namedJdbc = new NamedParameterJdbcTemplate(jdbc);
         MapSqlParameterSource params = new MapSqlParameterSource("ids", filmIds);
 
@@ -210,6 +228,14 @@ public class FilmDbStorage implements FilmStorage {
 
         for (Long genreId : genreIds) {
             jdbc.update(SAVE_FILM_GENRES_QUERY, filmId, genreId);
+        }
+    }
+
+    private void saveFilmDirectors(Long filmId, Set<Director> directors) {
+        Set<Long> directorsIds = directors.stream().map(Director::getId).collect(Collectors.toSet());
+
+        for (Long directorId : directorsIds) {
+            jdbc.update(SAVE_FILM_DIRECTORS_QUERY, filmId, directorId);
         }
     }
 
