@@ -30,4 +30,6 @@ public interface FilmStorage {
     Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds);
 
     List<Film> commonFilmsByPopularity(Long userId, Long friendId);
+
+    List<Film> searchFilms(String query, Set<String> searchBy);
 }

@@ -47,6 +47,12 @@ public class FilmController {
         return filmService.commonFilmsByPopularity(userId, friendId);
     }
 
+    @GetMapping("/search")
+    public List<Film> searchFilms(@RequestParam(required = false) String query,
+                                  @RequestParam(required = false) String by) {
+        return filmService.searchFilms(query, by);
+    }
+
     @PostMapping
     public Film create(@RequestBody Film film) {
         return filmService.create(film);

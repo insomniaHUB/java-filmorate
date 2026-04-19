@@ -206,6 +206,36 @@ public class FilmService {
         return films;
     }
 
+    public List<Film> searchFilms(String query, String by) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+
+        Set<String> searchBy = Arrays.stream(by.split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
+
+        List<Film> films = filmStorage.searchFilms(query, searchBy);
+
+        if (!films.isEmpty()) {
+            Set<Long> filmIds = films.stream()
+                    .map(Film::getId)
+                    .collect(Collectors.toSet());
+
+            Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
+            Map<Long, Set<Director>> directorsMap = directorStorage.loadDirectorsForFilms(filmIds);
+            Map<Long, Set<Long>> likesMap = filmStorage.loadLikesForFilms(filmIds);
+
+            for (Film film : films) {
+                film.setGenres(genresMap.getOrDefault(film.getId(), Set.of()));
+                film.setDirectors(directorsMap.getOrDefault(film.getId(), Set.of()));
+                film.setLiked(likesMap.getOrDefault(film.getId(), Set.of()));
+            }
+        }
+
+        return films;
+    }
+
     public void deleteFilm(Long filmId) {
         validateFilm(filmId);
         filmStorage.deleteFilm(filmId);
