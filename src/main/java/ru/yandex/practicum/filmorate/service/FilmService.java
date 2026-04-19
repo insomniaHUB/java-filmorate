@@ -207,10 +207,6 @@ public class FilmService {
     }
 
     public List<Film> searchFilms(String query, String by) {
-        if (query == null || query.isBlank()) {
-            return List.of();
-        }
-
         Set<String> searchBy = Arrays.stream(by.split(","))
                 .map(String::trim)
                 .collect(Collectors.toSet());

@@ -121,8 +121,7 @@ public class FilmDbStorage implements FilmStorage {
         StringBuilder sql = new StringBuilder(
                 "SELECT f.*, m.rating " +
                         "FROM films AS f " +
-                        "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id " +
-                        "LEFT JOIN likes AS l ON f.film_id = l.film_id "
+                        "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id "
         );
 
         List<String> conditions = new ArrayList<>();
