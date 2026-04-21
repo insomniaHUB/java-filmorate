@@ -116,20 +116,7 @@ public class FilmService {
 
     public Collection<Film> getFilmRecommendations(Long id) {
         validateUser(id);
-
         Collection<Film> films = filmStorage.getFilmRecommendations(id);
-
-/*        Set<Long> filmIds = films.stream()
-                .map(Film::getId)
-                .collect(Collectors.toSet());
-
-        Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
-        Map<Long, Set<Director>> directorsMap = directorStorage.loadDirectorsForFilms(filmIds);
-
-        for (Film film : films) {
-            film.setGenres(genresMap.getOrDefault(film.getId(), Set.of()));
-            film.setDirectors(directorsMap.getOrDefault(film.getId(), Set.of()));
-        }*/
 
         return films;
     }
