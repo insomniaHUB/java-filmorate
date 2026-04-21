@@ -116,9 +116,7 @@ public class FilmService {
 
     public Collection<Film> getFilmRecommendations(Long id) {
         validateUser(id);
-        Collection<Film> films = filmStorage.getFilmRecommendations(id);
-
-        return films;
+        return filmStorage.getFilmRecommendations(id);
     }
 
     public Collection<Film> commonFilmsByPopularity(Long userId, Long friendId) {

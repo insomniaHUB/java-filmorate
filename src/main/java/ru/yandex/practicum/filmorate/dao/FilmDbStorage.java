@@ -216,15 +216,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Collection<Film> getFilmRecommendations(Long id) {
-        Collection<Film> recommendations = jdbc.query(GET_RECOMMENDATIONS_FILMS_QUERY, mapper, id, id, id);
-
-/*
-        if (recommendations.isEmpty()) {
-            return jdbc.query(GET_POPULAR_FILMS_QUERY, mapper, id);
-        }
-*/
-
-        return recommendations;
+        return jdbc.query(GET_RECOMMENDATIONS_FILMS_QUERY, mapper, id, id, id);
     }
 
     public Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
