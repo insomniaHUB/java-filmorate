@@ -122,6 +122,37 @@ public class FilmDbStorage implements FilmStorage {
         return films;
     }
 
+    public List<Film> searchFilms(String query, Set<String> searchBy) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT f.*, m.rating " +
+                        "FROM films AS f " +
+                        "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id "
+        );
+
+        List<String> conditions = new ArrayList<>();
+        List<Object> params = new ArrayList<>();
+        String likePattern = "%" + query + "%";
+
+        if (searchBy.contains("director")) {
+            sql.append("LEFT JOIN film_directors fd ON f.film_id = fd.film_id " +
+                    "LEFT JOIN directors d ON fd.director_id = d.director_id");
+            conditions.add("d.director_name LIKE ?");
+            params.add(likePattern);
+        }
+        if (searchBy.contains("title")) {
+            conditions.add("f.name LIKE ?");
+            params.add(likePattern);
+        }
+
+        if (!conditions.isEmpty()) {
+            sql.append(" WHERE ").append(String.join(" OR ", conditions));
+        }
+
+        sql.append(" ORDER BY (SELECT COUNT(*) FROM likes l WHERE l.film_id = f.film_id) DESC");
+
+        return jdbc.query(sql.toString(), mapper, params.toArray());
+    }
+
     @Override
     public Film getFilmById(Long id) {
         try {
