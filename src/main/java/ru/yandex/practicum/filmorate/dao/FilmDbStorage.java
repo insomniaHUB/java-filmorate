@@ -50,6 +50,7 @@ public class FilmDbStorage implements FilmStorage {
             "JOIN film_directors AS fd ON f.film_id=fd.film_id " +
             "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE fd.director_id = ?";
     private static final String DELETE_FILM_DIRECTORS_QUERY = "DELETE FROM film_directors WHERE film_id = ?";
+    private static final String CHECK_LIKE_QUERY = "SELECT COUNT(*) FROM likes WHERE user_id = ? AND film_id = ?";
 
     private final JdbcTemplate jdbc;
     private final RowMapper<Film> mapper;
@@ -131,16 +132,16 @@ public class FilmDbStorage implements FilmStorage {
 
         List<String> conditions = new ArrayList<>();
         List<Object> params = new ArrayList<>();
-        String likePattern = "%" + query + "%";
+        String likePattern = "%" + query.toLowerCase() + "%";
 
         if (searchBy.contains("director")) {
             sql.append("LEFT JOIN film_directors fd ON f.film_id = fd.film_id " +
                     "LEFT JOIN directors d ON fd.director_id = d.director_id");
-            conditions.add("d.director_name LIKE ?");
+            conditions.add("LOWER(d.director_name) LIKE ?");
             params.add(likePattern);
         }
         if (searchBy.contains("title")) {
-            conditions.add("f.name LIKE ?");
+            conditions.add("LOWER(f.name) LIKE ?");
             params.add(likePattern);
         }
 
@@ -217,7 +218,10 @@ public class FilmDbStorage implements FilmStorage {
         if (newFilm.getDirectors() != null && !newFilm.getDirectors().isEmpty()) {
             saveFilmDirectors(newFilm.getId(), newFilm.getDirectors());
         }
-
+        jdbc.update("DELETE FROM film_genres WHERE film_id = ?", newFilm.getId());
+        if (newFilm.getGenres() != null && !newFilm.getGenres().isEmpty()) {
+            saveFilmGenres(newFilm.getId(), newFilm.getGenres());
+        }
         return newFilm;
     }
 
@@ -228,6 +232,11 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public void addLike(Long id, Long idUser) {
+        Integer count = jdbc.queryForObject(CHECK_LIKE_QUERY, Integer.class, idUser, id);
+
+        if (count > 0) {
+            return;
+        }
         jdbc.update(ADD_LIKE_QUERY, idUser, id);
     }
 

@@ -77,9 +77,13 @@ public class FilmService {
         if (film.getDirectors() != null && !film.getDirectors().isEmpty()) {
             directorStorage.validateDirectors(film.getDirectors());
         }
-
+        Film filmCreated = filmStorage.createFilm(film);
+        if (filmCreated != null) {
+            filmCreated.setGenres(genreStorage.loadGenreObjects(filmCreated.getId()));
+            filmCreated.setDirectors(directorStorage.loadDirectorObjects(filmCreated.getId()));
+        }
         log.info("Создан новый фильм.");
-        return filmStorage.createFilm(film);
+        return filmCreated;
     }
 
     public Film update(Film newFilm) {
@@ -108,7 +112,9 @@ public class FilmService {
             }
 
             log.info("Данные фильма успешно обновлены.");
-            return filmStorage.updateFilm(newFilm);
+            filmStorage.updateFilm(newFilm);
+
+            return findFilm(newFilm.getId());
         }
         log.warn("Фильм с Id = " + newFilm.getId() + " не был найден!");
         throw new NotFoundException("Фильм с Id = " + newFilm.getId() + " не был найден!");
@@ -116,7 +122,21 @@ public class FilmService {
 
     public Collection<Film> getFilmRecommendations(Long id) {
         validateUser(id);
-        return filmStorage.getFilmRecommendations(id);
+        Collection<Film> films = filmStorage.getFilmRecommendations(id);
+
+        Set<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Genre>> genresMap = genreStorage.loadGenresForFilms(filmIds);
+        Map<Long, Set<Director>> directorsMap = directorStorage.loadDirectorsForFilms(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(genresMap.getOrDefault(film.getId(), Set.of()));
+            film.setDirectors(directorsMap.getOrDefault(film.getId(), Set.of()));
+        }
+
+        return films;
     }
 
     public Collection<Film> commonFilmsByPopularity(Long userId, Long friendId) {
