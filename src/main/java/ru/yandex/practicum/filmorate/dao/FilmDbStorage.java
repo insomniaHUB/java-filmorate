@@ -30,6 +30,11 @@ public class FilmDbStorage implements FilmStorage {
             "motion_picture_association AS m ON f.mpa = m.mpa_id WHERE f.film_id IN (SELECT l1.film_id FROM likes AS l1 " +
             " JOIN likes AS l2 ON l1.film_id = l2.film_id WHERE l1.user_id = ? AND l2.user_id = ?) ORDER BY (SELECT COUNT(*) " +
             " FROM likes AS l WHERE l.film_id = f.film_id) DESC;";
+    private static final String GET_RECOMMENDATIONS_FILMS_QUERY = "SELECT f.*, m.rating FROM films AS f LEFT JOIN " +
+            "motion_picture_association AS m ON f.mpa = m.mpa_id WHERE f.film_id IN (SELECT l2.film_id FROM likes l2 " +
+            "WHERE l2.user_id = (SELECT l3.user_id FROM likes l3 WHERE l3.film_id IN (SELECT film_id FROM likes WHERE " +
+            "user_id = ?) AND l3.user_id != ? GROUP BY l3.user_id ORDER BY COUNT(*) DESC, l3.user_id ASC LIMIT 1)) AND " +
+            "f.film_id NOT IN (SELECT film_id FROM likes WHERE user_id = ?) ORDER BY f.film_id;";
     private static final String CREATE_FILM_QUERY = "INSERT INTO films (name, description, " +
             "duration, release_date, mpa) VALUES (?, ?, ?, ?, ?)";
     private static final String UPDATE_FILM_QUERY = "UPDATE films SET name = ?, description = ?, duration = ?, " +
@@ -238,6 +243,11 @@ public class FilmDbStorage implements FilmStorage {
 
     public List<Film> commonFilmsByPopularity(Long userId, Long friendId) {
         return jdbc.query(GET_COMMON_FILMS_QUERY, mapper, userId, friendId);
+    }
+
+    @Override
+    public Collection<Film> getFilmRecommendations(Long id) {
+        return jdbc.query(GET_RECOMMENDATIONS_FILMS_QUERY, mapper, id, id, id);
     }
 
     public Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {

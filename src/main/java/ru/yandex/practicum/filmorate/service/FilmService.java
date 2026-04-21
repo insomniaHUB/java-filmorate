@@ -114,6 +114,11 @@ public class FilmService {
         throw new NotFoundException("Фильм с Id = " + newFilm.getId() + " не был найден!");
     }
 
+    public Collection<Film> getFilmRecommendations(Long id) {
+        validateUser(id);
+        return filmStorage.getFilmRecommendations(id);
+    }
+
     public Collection<Film> commonFilmsByPopularity(Long userId, Long friendId) {
         validateUser(userId);
         validateUser(friendId);
