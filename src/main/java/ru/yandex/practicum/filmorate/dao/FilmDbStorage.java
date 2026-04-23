@@ -51,6 +51,7 @@ public class FilmDbStorage implements FilmStorage {
             "LEFT JOIN motion_picture_association AS m ON f.mpa = m.mpa_id WHERE fd.director_id = ?";
     private static final String DELETE_FILM_DIRECTORS_QUERY = "DELETE FROM film_directors WHERE film_id = ?";
     private static final String CHECK_LIKE_QUERY = "SELECT COUNT(*) FROM likes WHERE user_id = ? AND film_id = ?";
+    private static final String DELETE_FILM_GENRES_QUERY = "DELETE FROM film_genres WHERE film_id = ?";
 
     private final JdbcTemplate jdbc;
     private final RowMapper<Film> mapper;
@@ -62,19 +63,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getAllFilms() {
-        List<Film> films = jdbc.query(GET_ALL_FILMS_QUERY, mapper);
-
-        Set<Long> filmIds = films.stream()
-                .map(Film::getId)
-                .collect(Collectors.toSet());
-
-        Map<Long, Set<Long>> likesMap = loadLikesForFilms(filmIds);
-
-        for (Film film : films) {
-            film.setLiked(likesMap.getOrDefault(film.getId(), Set.of()));
-        }
-
-        return films;
+        return jdbc.query(GET_ALL_FILMS_QUERY, mapper);
     }
 
     @Override
@@ -108,19 +97,7 @@ public class FilmDbStorage implements FilmStorage {
                 "LIMIT ?");
         params.add(count);
 
-        List<Film> films = jdbc.query(sql.toString(), mapper, params.toArray());
-
-        if (!films.isEmpty()) {
-            Set<Long> filmIds = films.stream()
-                    .map(Film::getId)
-                    .collect(Collectors.toSet());
-            Map<Long, Set<Long>> likesMap = loadLikesForFilms(filmIds);
-            for (Film film : films) {
-                film.setLiked(likesMap.getOrDefault(film.getId(), Set.of()));
-            }
-        }
-
-        return films;
+        return jdbc.query(sql.toString(), mapper, params.toArray());
     }
 
     public List<Film> searchFilms(String query, Set<String> searchBy) {
@@ -157,13 +134,7 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film getFilmById(Long id) {
         try {
-            Film film = jdbc.queryForObject(GET_FILM_BY_ID_QUERY, mapper, id);
-
-            if (film != null) {
-                film.setLiked(loadLikes(film.getId()));
-            }
-
-            return film;
+            return jdbc.queryForObject(GET_FILM_BY_ID_QUERY, mapper, id);
         } catch (EmptyResultDataAccessException e) {
             return null;
         }
@@ -218,7 +189,7 @@ public class FilmDbStorage implements FilmStorage {
         if (newFilm.getDirectors() != null && !newFilm.getDirectors().isEmpty()) {
             saveFilmDirectors(newFilm.getId(), newFilm.getDirectors());
         }
-        jdbc.update("DELETE FROM film_genres WHERE film_id = ?", newFilm.getId());
+        jdbc.update(DELETE_FILM_GENRES_QUERY, newFilm.getId());
         if (newFilm.getGenres() != null && !newFilm.getGenres().isEmpty()) {
             saveFilmGenres(newFilm.getId(), newFilm.getGenres());
         }
@@ -255,10 +226,11 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
-    public Collection<Film> getFilmRecommendations(Long id) {
+    public List<Film> getFilmRecommendations(Long id) {
         return jdbc.query(GET_RECOMMENDATIONS_FILMS_QUERY, mapper, id, id, id);
     }
 
+    @Override
     public Map<Long, Set<Long>> loadLikesForFilms(Set<Long> filmIds) {
         NamedParameterJdbcTemplate namedJdbc = new NamedParameterJdbcTemplate(jdbc);
         MapSqlParameterSource params = new MapSqlParameterSource("ids", filmIds);
@@ -271,6 +243,11 @@ public class FilmDbStorage implements FilmStorage {
         });
 
         return result;
+    }
+
+    @Override
+    public Set<Long> loadLikes(Long filmId) {
+        return new HashSet<>(jdbc.queryForList(LOAD_LIKES_QUERY, Long.class, filmId));
     }
 
     private void saveFilmGenres(Long filmId, Set<Genre> genres) {
@@ -287,9 +264,5 @@ public class FilmDbStorage implements FilmStorage {
         for (Long directorId : directorsIds) {
             jdbc.update(SAVE_FILM_DIRECTORS_QUERY, filmId, directorId);
         }
-    }
-
-    private Set<Long> loadLikes(Long filmId) {
-        return new HashSet<>(jdbc.queryForList(LOAD_LIKES_QUERY, Long.class, filmId));
     }
 }

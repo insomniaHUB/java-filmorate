@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.storage;
 
 import ru.yandex.practicum.filmorate.model.Film;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,7 +14,7 @@ public interface FilmStorage {
 
     Film updateFilm(Film newFilm);
 
-    Collection<Film> getAllFilms();
+    List<Film> getAllFilms();
 
     List<Film> getMostPopularFilms(int count, Long genreId, Long year);
 
@@ -31,7 +30,9 @@ public interface FilmStorage {
 
     List<Film> commonFilmsByPopularity(Long userId, Long friendId);
 
-    Collection<Film> getFilmRecommendations(Long id);
+    List<Film> getFilmRecommendations(Long id);
 
     List<Film> searchFilms(String query, Set<String> searchBy);
+
+    Set<Long> loadLikes(Long filmId);
 }

@@ -10,7 +10,6 @@ import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.GenreStorage;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Repository
 public class GenreDbStorage implements GenreStorage {
@@ -68,25 +67,7 @@ public class GenreDbStorage implements GenreStorage {
     }
 
     @Override
-    public void validateGenres(Set<Genre> genres) {
-        Set<Long> requestedIds = genres.stream()
-                .map(Genre::getId)
-                .collect(Collectors.toSet());
-
-        if (requestedIds.isEmpty()) {
-            return;
-        }
-
-        Set<Long> existingIds = getExistingGenreIds();
-
-        for (Long id : requestedIds) {
-            if (!existingIds.contains(id)) {
-                throw new NotFoundException("Жанра с id=" + id + " не существует");
-            }
-        }
-    }
-
-    private Set<Long> getExistingGenreIds() {
+    public Set<Long> getExistingGenreIds() {
         return new HashSet<>(jdbc.queryForList(GET_GENRES_ID_QUERY, Long.class));
     }
 }

@@ -21,5 +21,5 @@ public interface DirectorStorage {
 
     Set<Director> loadDirectorObjects(Long filmId);
 
-    void validateDirectors(Set<Director> directors);
+    Set<Long> getExistingDirectorIds();
 }

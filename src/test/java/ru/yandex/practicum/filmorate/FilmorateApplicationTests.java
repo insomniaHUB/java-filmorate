@@ -5,18 +5,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
-import ru.yandex.practicum.filmorate.dao.FilmDbStorage;
-import ru.yandex.practicum.filmorate.dao.GenreDbStorage;
-import ru.yandex.practicum.filmorate.dao.MpaDbStorage;
-import ru.yandex.practicum.filmorate.dao.UserDbStorage;
-import ru.yandex.practicum.filmorate.dao.mappers.FilmRowMapper;
-import ru.yandex.practicum.filmorate.dao.mappers.GenreRowMapper;
-import ru.yandex.practicum.filmorate.dao.mappers.MpaRowMapper;
-import ru.yandex.practicum.filmorate.dao.mappers.UserRowMapper;
+import ru.yandex.practicum.filmorate.dao.*;
+import ru.yandex.practicum.filmorate.dao.mappers.*;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MotionPicture;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.FeedService;
+import ru.yandex.practicum.filmorate.service.FilmService;
 
 
 import java.time.LocalDate;
@@ -24,8 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @JdbcTest
 @AutoConfigureTestDatabase
-@Import({UserDbStorage.class, FilmDbStorage.class, GenreDbStorage.class, MpaDbStorage.class,
-        UserRowMapper.class, FilmRowMapper.class, MpaRowMapper.class, GenreRowMapper.class})
+@Import({UserDbStorage.class, FilmDbStorage.class, GenreDbStorage.class, MpaDbStorage.class, FeedDbStorage.class,
+        UserRowMapper.class, FilmRowMapper.class, MpaRowMapper.class, GenreRowMapper.class, FeedRowMapper.class,
+        FilmService.class, FeedService.class, DirectorDbStorage.class, DirectorRowMapper.class})
 class FilmorateApplicationTests {
     @Autowired
     private UserDbStorage userStorage;
@@ -35,6 +32,8 @@ class FilmorateApplicationTests {
     private GenreDbStorage genreStorage;
     @Autowired
     private MpaDbStorage mpaStorage;
+    @Autowired
+    private FilmService filmService;
 
     @Test
     void testGetAllUsers() {
@@ -295,7 +294,7 @@ class FilmorateApplicationTests {
         Film createdFilm = filmStorage.createFilm(filmOne);
         filmStorage.addLike(createdFilm.getId(), createdUser.getId());
 
-        Film newFilm = filmStorage.getFilmById(createdFilm.getId());
+        Film newFilm = filmService.findFilm(createdFilm.getId());
 
         assertThat(newFilm.getLiked()).hasSize(1);
         assertThat(newFilm.getLiked()).contains(createdUser.getId());

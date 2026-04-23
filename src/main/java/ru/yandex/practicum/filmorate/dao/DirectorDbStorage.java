@@ -16,7 +16,6 @@ import ru.yandex.practicum.filmorate.storage.DirectorStorage;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -111,25 +110,7 @@ public class DirectorDbStorage implements DirectorStorage {
     }
 
     @Override
-    public void validateDirectors(Set<Director> directors) {
-        Set<Long> requestedIds = directors.stream()
-                .map(Director::getId)
-                .collect(Collectors.toSet());
-
-        if (requestedIds.isEmpty()) {
-            return;
-        }
-
-        Set<Long> existingIds = getExistingDirectorIds();
-
-        for (Long id : requestedIds) {
-            if (!existingIds.contains(id)) {
-                throw new NotFoundException("Режиссера с id=" + id + " не существует");
-            }
-        }
-    }
-
-    private Set<Long> getExistingDirectorIds() {
+    public Set<Long> getExistingDirectorIds() {
         return new HashSet<>(jdbc.queryForList(GET_DIRECTORS_ID_QUERY, Long.class));
     }
 }
