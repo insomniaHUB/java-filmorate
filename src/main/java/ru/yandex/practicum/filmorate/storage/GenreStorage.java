@@ -15,5 +15,5 @@ public interface GenreStorage {
 
     Map<Long, Set<Genre>> loadGenresForFilms(Set<Long> filmIds);
 
-    void validateGenres(Set<Genre> genres);
+    Set<Long> getExistingGenreIds();
 }
